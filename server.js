@@ -1,18 +1,26 @@
 const express = require("express");
-const cors = require("cors"); // Optional: untuk menangani CORS jika frontend berada di domain/port berbeda
-const authRoutes = require("./routes/authRoutes"); // Mengimpor authRoutes
+const cors = require("cors");
+const authRoutes = require("./routes/authRoutes");
+const dataRoutes = require("./routes/dataRoutes");
+const flightRoutes = require("./routes/flightRoutes");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Menggunakan environment variable jika ada
+const PORT = process.env.PORT || 2000;
 
-// Middleware
-app.use(cors()); // Untuk menangani CORS jika frontend dari domain berbeda
-app.use(express.json()); // Middleware untuk parsing JSON (sejak Express 4.16+)
+app.use(cors());
+app.use(express.json());
 
-// Gunakan routes
-app.use("/api/auth", authRoutes); // Menambahkan prefix "/api/auth" untuk routing auth
+app.use("/api/auth", authRoutes);
+app.use("/data", dataRoutes);
+app.use("/flights", flightRoutes);
 
-// Jalankan server
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res
+    .status(500)
+    .json({ message: "Something went wrong!", error: err.message });
+});
+
 app.listen(PORT, () => {
-  console.log(`Server berjalan di http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -14,17 +14,3 @@ connection.connect((err) => {
     }
     console.log('connected as id ' + connection.threadId);
 });
-
-untuk masukin data register
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123"
-}
-
-untuk masukin data login
-{
-  "message": "User berhasil didaftarkan",
-  "user": "USER_UID"
-}
-
