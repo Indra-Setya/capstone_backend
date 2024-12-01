@@ -1,42 +1,45 @@
-const { auth, db } = require("../firebase-config"); // Mengimpor firebase-config yang berisi Firebase Realtime Database (db)
-const { createUserWithEmailAndPassword } = require("firebase/auth");
-const { signInWithEmailAndPassword } = require("firebase/auth");
-const { ref, set } = require("firebase/database"); // Mengimpor fungsi untuk menulis ke Realtime Database
+const { auth, db } = require("../firebase-config");
+const {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} = require("firebase/auth");
+const { ref, set, get, child } = require("firebase/database");
 
-// Fungsi registrasi pengguna
 exports.register = async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
     return res
       .status(400)
-      .json({ message: "Username, Email dan password diperlukan" });
+      .json({ message: "Username, email, dan password diperlukan" });
   }
 
   try {
-    // Membuat akun pengguna dengan email dan password
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
       password
     );
+    const userId = userCredential.user.uid;
 
-    // Simpan username ke Realtime Database setelah pendaftaran
-    const userRef = ref(db, "users/" + userCredential.user.uid); // Menyimpan berdasarkan UID pengguna
-    await set(userRef, {
-      email: email,
-      username: username,
-      uid: userCredential.user.uid,
-    });
+    await set(ref(db, `users/${userId}`), { username, email });
 
     res.status(201).json({
-      message: "User berhasil didaftarkan",
-      user: userCredential.user.uid,
+      message: "Register Berhasil",
+      user: { id: userId, username, email },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Gagal mendaftarkan pengguna", error: error.message });
+    console.error("Error creating new user:", error);
+
+    let errorMessage = "Gagal mendaftarkan pengguna";
+    if (error.code === "auth/email-already-in-use") {
+      errorMessage = "Email sudah digunakan oleh pengguna lain";
+    }
+
+    res.status(500).json({
+      message: errorMessage,
+      error: error.message,
+    });
   }
 };
 
@@ -48,29 +51,40 @@ exports.login = async (req, res) => {
   }
 
   try {
-    // Login menggunakan email dan password
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
       password
     );
+    const userId = userCredential.user.uid;
 
-    // Ambil username pengguna dari Realtime Database setelah login
-    const userRef = ref(db, "users/" + userCredential.user.uid); // Referensi berdasarkan UID pengguna
-    const snapshot = await get(userRef);
+    const userSnapshot = await get(child(ref(db), `users/${userId}`));
 
-    if (!snapshot.exists()) {
-      return res.status(404).json({ message: "Data pengguna tidak ditemukan" });
+    if (!userSnapshot.exists()) {
+      return res
+        .status(404)
+        .json({ message: "User tidak ditemukan di database" });
     }
 
-    const userData = snapshot.val(); // Ambil data pengguna dari database
+    const userData = userSnapshot.val();
 
     res.status(200).json({
       message: "Login berhasil",
-      user: userCredential.user.uid,
-      username: userData.username, // Menambahkan username ke response
+      user: { id: userId, username: userData.username, email: userData.email },
     });
   } catch (error) {
-    res.status(500).json({ message: "Gagal login", error: error.message });
+    console.error("Error during login:", error);
+
+    let errorMessage = "Gagal login";
+    if (error.code === "auth/wrong-password") {
+      errorMessage = "Password salah";
+    } else if (error.code === "auth/user-not-found") {
+      errorMessage = "User tidak ditemukan";
+    }
+
+    res.status(500).json({
+      message: errorMessage,
+      error: error.message,
+    });
   }
 };
